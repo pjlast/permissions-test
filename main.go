@@ -96,6 +96,113 @@ with recursive all_users as (
 	return false, nil
 }
 
+func fetchAllResourcesWithRelationOnObject(db *sql.DB, objectNamespace string, objectID int, relation, subjectNamespace string) ([]int, error) {
+	sqlQuery := `
+with recursive all_users as (
+	select 
+		object_namespace,
+		object_id,
+		relation,
+		subject_namespace,
+		subject_id,
+		subject_set_relation
+	from
+		permissions
+	where 
+		object_namespace = $1
+		and object_id = $2
+		and relation = $4
+	union 
+		select 
+			p.object_namespace,
+			p.object_id,
+			p.relation,
+			p.subject_namespace,
+			p.subject_id,
+			p.subject_set_relation
+		from
+			permissions p
+		inner join all_users au on au.subject_namespace = p.object_namespace and au.subject_id = p.object_id and au.subject_set_relation=p.relation
+) select subject_id from all_users where subject_namespace = $3;
+`
+
+	rows, err := db.Query(sqlQuery, objectNamespace, objectID, subjectNamespace, relation)
+
+	if err != nil {
+		return []int{}, err
+	}
+
+	defer rows.Close()
+
+	var userIDs []int
+
+	for rows.Next() {
+		var id int
+		err := rows.Scan(&id)
+
+		if err != nil {
+			return []int{}, err
+		}
+
+		userIDs = append(userIDs, id)
+	}
+
+	return userIDs, nil
+}
+
+func fetchAllResourcesWithRelationOnSubject(db *sql.DB, subjectNamespace string, subjectID int, relation, objectNamespace string) ([]int, error) {
+	sqlQuery := `
+with recursive all_users as (
+	select 
+		object_namespace,
+		object_id,
+		relation,
+		subject_namespace,
+		subject_id,
+		subject_set_relation
+	from
+		permissions
+	where 
+		subject_namespace = $1
+		and subject_id = $2
+	union 
+		select 
+			p.object_namespace,
+			p.object_id,
+			p.relation,
+			p.subject_namespace,
+			p.subject_id,
+			p.subject_set_relation
+		from
+			permissions p
+		inner join all_users au on au.object_namespace = p.subject_namespace and au.object_id = p.subject_id and au.relation=p.subject_set_relation
+) select object_id from all_users where object_namespace = $3 AND relation = $4;
+`
+
+	rows, err := db.Query(sqlQuery, subjectNamespace, subjectID, objectNamespace, relation)
+
+	if err != nil {
+		return []int{}, err
+	}
+
+	defer rows.Close()
+
+	var userIDs []int
+
+	for rows.Next() {
+		var id int
+		err := rows.Scan(&id)
+
+		if err != nil {
+			return []int{}, err
+		}
+
+		userIDs = append(userIDs, id)
+	}
+
+	return userIDs, nil
+}
+
 func main() {
 	teardown, err := setupDB()
 	if err != nil {
@@ -203,6 +310,28 @@ func main() {
 	fmt.Println("Can user 1 write to codeinsight 1?: ", canWrite)
 
 	fmt.Println("------")
+
+	fmt.Println("We also want to show that we are able to retrieve all users that have access to a resource, or all resources that a user has access to.")
+	fmt.Println("First we will give another user, user 2, direct write access to the code insight.")
+
+	err = createRelation(db, "codeinsights", 1, "write", "users", 2, "")
+
+	fmt.Println("Then we will query for all users that have write access to code insight 1:")
+
+	userIDs, err := fetchAllResourcesWithRelationOnObject(db, "codeinsights", 1, "write", "users")
+
+	fmt.Println("User IDs with write access to code insight 1: ", userIDs)
+
+	fmt.Println("-----")
+	fmt.Println("Similarly, we can fetch all resources a user has access to. We'll create a code insight 3 that user 1 can also write to, and retrieve the list")
+
+	err = createRelation(db, "codeinsights", 3, "write", "users", 1, "")
+
+	codeinsightIDs, err := fetchAllResourcesWithRelationOnSubject(db, "users", 1, "write", "codeinsights")
+
+	fmt.Println("Code insight IDs that user 1 can write to: ", codeinsightIDs)
+
+	fmt.Println("-----")
 	fmt.Println("Finally, we remove user 1 from group 1, which should cause them to lose write access to notebook 1, but they will still be able to read it and code insight 1")
 
 	err = deleteRelation(db, "groups", 1, "member", "users", 1, "")
