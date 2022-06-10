@@ -5,6 +5,7 @@ DROP TABLE IF EXISTS usersets;
 DROP TABLE IF EXISTS codeinsights;
 DROP TABLE IF EXISTS notebooks;
 DROP TABLE IF EXISTS relations;
+DROP TABLE IF EXISTS resource_mapping;
 DROP TABLE IF EXISTS namespaces;
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS groups;

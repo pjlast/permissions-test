@@ -28,19 +28,22 @@ CREATE TABLE codeinsights (
     name varchar(20)
 );
 
+CREATE TABLE resource_mapping (
+    id serial PRIMARY KEY,
+    notebooks_id int UNIQUE REFERENCES notebooks(id) ON DELETE CASCADE,
+    codeinsights_id int UNIQUE REFERENCES codeinsights(id) ON DELETE CASCADE,
+    groups_id int UNIQUE REFERENCES groups(id) ON DELETE CASCADE
+);
+
 CREATE TABLE usersets (
     id serial PRIMARY KEY,
     relation int REFERENCES relations(id) ON DELETE CASCADE,
-    notebooks_id int REFERENCES notebooks(id) ON DELETE CASCADE,
-    codeinsights_id int REFERENCES codeinsights(id) ON DELETE CASCADE,
-    groups_id int REFERENCES groups(id) ON DELETE CASCADE,
-    UNIQUE (relation, notebooks_id),
-    UNIQUE (relation, codeinsights_id),
-    UNIQUE (relation, groups_id)
+    resource_id int REFERENCES resource_mapping(id) ON DELETE CASCADE,
+    UNIQUE (relation, resource_id)
 );
 
 CREATE TABLE groups_namespace (
-    id int REFERENCES groups(id) ON DELETE CASCADE,
+    id int REFERENCES resource_mapping(id) ON DELETE CASCADE,
     relation int REFERENCES relations(id) ON DELETE CASCADE,
     user_id int REFERENCES users(id) ON DELETE CASCADE,
     userset_id int REFERENCES usersets(id) ON DELETE CASCADE,
@@ -49,7 +52,7 @@ CREATE TABLE groups_namespace (
 );
 
 CREATE TABLE notebooks_namespace (
-    id int REFERENCES notebooks(id) ON DELETE CASCADE,
+    id int REFERENCES resource_mapping(id) ON DELETE CASCADE,
     relation int REFERENCES relations(id) ON DELETE CASCADE,
     user_id int REFERENCES users(id) ON DELETE CASCADE,
     userset_id int REFERENCES usersets(id) ON DELETE CASCADE,
@@ -58,7 +61,7 @@ CREATE TABLE notebooks_namespace (
 );
 
 CREATE TABLE codeinsights_namespace (
-    id int REFERENCES codeinsights(id) ON DELETE CASCADE,
+    id int REFERENCES resource_mapping(id) ON DELETE CASCADE,
     relation int REFERENCES relations(id) ON DELETE CASCADE,
     user_id int REFERENCES users(id) ON DELETE CASCADE,
     userset_id int REFERENCES usersets(id) ON DELETE CASCADE,

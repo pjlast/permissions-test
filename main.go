@@ -45,52 +45,92 @@ func (p *permissions) createResource(resourceType, resourceName string) (int, er
 	return id, err
 }
 
-func (p *permissions) createUserSet(namespace string, id int, relation string) (int, error) {
-	var usersetID int
+func (p *permissions) getResourceID(namespace string, id int) (int, error) {
+	var resourceID int
+	err := p.DB.QueryRow(fmt.Sprintf("SELECT id FROM resource_mapping WHERE %s_id = $1", namespace), id).Scan(&resourceID)
+	if err != nil {
+		return 0, err
+	}
+
+	return resourceID, nil
+}
+
+func (p *permissions) registerResourceID(namespace string, id int) (int, error) {
+	var resourceID int
+	err := p.DB.QueryRow(fmt.Sprintf("INSERT INTO resource_mapping (%[1]s_id) VALUES ($1) RETURNING id", namespace), id).Scan(&resourceID)
+	if err != nil {
+		return 0, err
+	}
+
+	return resourceID, nil
+}
+
+func (p *permissions) registerOrGetResourceID(namespace string, id int) (int, error) {
+	var resourceID int
 	err := p.DB.QueryRow(fmt.Sprintf(`
 WITH e AS(
-	INSERT INTO usersets (relation, %[1]s_id)
-		VALUES ($1, $2)
-	ON CONFLICT(relation, %[1]s_id) DO NOTHING
+	INSERT INTO resource_mapping (%[1]s_id)
+		VALUES ($1)
+	ON CONFLICT(%[1]s_id) DO NOTHING
 	RETURNING id
 )
 SELECT * FROM e
 UNION
-SELECT id FROM usersets WHERE relation=$1 AND %[1]s_id=$2`, namespace), p.Relations[relation], id).Scan(&usersetID)
+SELECT id FROM resource_mapping WHERE %[1]s_id=$1`, namespace), id).Scan(&resourceID)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return resourceID, err
+}
+
+func (p *permissions) createUserSet(resourceID int, relation string) (int, error) {
+	var usersetID int
+	err := p.DB.QueryRow(`
+WITH e AS(
+	INSERT INTO usersets (relation, resource_id)
+		VALUES ($1, $2)
+	ON CONFLICT(relation, resource_id) DO NOTHING
+	RETURNING id
+)
+SELECT * FROM e
+UNION
+SELECT id FROM usersets WHERE relation=$1 AND resource_id=$2`, p.Relations[relation], resourceID).Scan(&usersetID)
 
 	return usersetID, err
 }
 
-func (p *permissions) createUserRelation(namespace string, id int, relation string, userID int) error {
-	_, err := p.DB.Exec(fmt.Sprintf("INSERT INTO %s_namespace(id, relation, user_id) VALUES($1, $2, $3);", namespace), id, p.Relations[relation], userID)
+func (p *permissions) createUserRelation(namespace string, resourceID int, relation string, userID int) error {
+	_, err := p.DB.Exec(fmt.Sprintf("INSERT INTO %s_namespace(id, relation, user_id) VALUES($1, $2, $3);", namespace), resourceID, p.Relations[relation], userID)
 
 	return err
 }
 
-func (p *permissions) createUserSetRelation(namespace string, id int, relation string, usersetNamespace string, usersetID int, usersetRelation string) error {
-	usersetID, err := p.createUserSet(usersetNamespace, usersetID, usersetRelation)
+func (p *permissions) createUserSetRelation(namespace string, resourceID int, relation string, usersetID int, usersetRelation string) error {
+	usersetID, err := p.createUserSet(usersetID, usersetRelation)
 	if err != nil {
 		return err
 	}
 
-	_, err = p.DB.Exec(fmt.Sprintf("INSERT INTO %s_namespace(id, relation, userset_id) VALUES($1, $2, $3);", namespace), id, p.Relations[relation], usersetID)
+	_, err = p.DB.Exec(fmt.Sprintf("INSERT INTO %s_namespace(id, relation, userset_id) VALUES($1, $2, $3);", namespace), resourceID, p.Relations[relation], usersetID)
 
 	return err
 }
 
-func (p *permissions) deleteUserRelation(namespace string, id int, relation string, userID int) error {
-	_, err := p.DB.Exec(fmt.Sprintf("DELETE FROM %s_namespace WHERE id = $1 AND relation = $2 AND user_id = $3;", namespace), id, p.Relations[relation], userID)
+func (p *permissions) deleteUserRelation(namespace string, resourceID int, relation string, userID int) error {
+	_, err := p.DB.Exec(fmt.Sprintf("DELETE FROM %s_namespace WHERE id = $1 AND relation = $2 AND user_id = $3;", namespace), resourceID, p.Relations[relation], userID)
 
 	return err
 }
 
-func (p *permissions) deleteUserSetRelation(namespace string, id int, relation string, userID int) error {
-	_, err := p.DB.Exec(fmt.Sprintf("DELETE FROM %s_namespace WHERE id = $1 AND relation = $2 AND user_id = $3;", namespace), id, p.Relations[relation], userID)
+func (p *permissions) deleteUserSetRelation(namespace string, resourceID int, relation string, usersetID int) error {
+	_, err := p.DB.Exec(fmt.Sprintf("DELETE FROM %s_namespace WHERE id = $1 AND relation = $2 AND userset_id = $3;", namespace), resourceID, p.Relations[relation], usersetID)
 
 	return err
 }
 
-func (p *permissions) checkUserRelation(namespace string, id int, relation string, userID int) (bool, error) {
+func (p *permissions) checkUserRelation(namespace string, resourceID int, relation string, userID int) (bool, error) {
 	idSlice := make([]string, 0, len(p.Namespaces))
 	relationSlice := make([]string, 0, len(p.Namespaces))
 	userIDSlice := make([]string, 0, len(p.Namespaces))
@@ -102,7 +142,7 @@ func (p *permissions) checkUserRelation(namespace string, id int, relation strin
 		userIDSlice = append(userIDSlice, fmt.Sprintf("%s_namespace.user_id", k))
 		usersetIDSlice = append(usersetIDSlice, fmt.Sprintf("%s_namespace.userset_id", k))
 		namespaceJoinsSlice = append(namespaceJoinsSlice, fmt.Sprintf(`LEFT JOIN %[1]s_namespace ON
-			%[1]s_namespace.id = usersets.%[1]s_id AND
+			%[1]s_namespace.id = usersets.resource_id AND
 			%[1]s_namespace.relation = usersets.relation`, k))
 	}
 
@@ -139,7 +179,7 @@ WHERE
 	user_id IS NOT NULL;
 `, namespace, strings.Join(idSlice, ", "), strings.Join(relationSlice, ", "), strings.Join(userIDSlice, ", "), strings.Join(usersetIDSlice, ", "), strings.Join(namespaceJoinsSlice, "\n"))
 
-	rows, err := p.DB.Query(sqlQuery, id, p.Relations[relation])
+	rows, err := p.DB.Query(sqlQuery, resourceID, p.Relations[relation])
 
 	if err != nil {
 		return false, err
@@ -163,7 +203,7 @@ WHERE
 	return false, nil
 }
 
-func (p *permissions) fetchUsersWithRelation(namespace string, id int, relation string) ([]int, error) {
+func (p *permissions) fetchUsersWithRelation(namespace string, resourceID int, relation string) ([]int, error) {
 	idSlice := make([]string, 0, len(p.Namespaces))
 	relationSlice := make([]string, 0, len(p.Namespaces))
 	userIDSlice := make([]string, 0, len(p.Namespaces))
@@ -175,7 +215,7 @@ func (p *permissions) fetchUsersWithRelation(namespace string, id int, relation 
 		userIDSlice = append(userIDSlice, fmt.Sprintf("%s_namespace.user_id", k))
 		usersetIDSlice = append(usersetIDSlice, fmt.Sprintf("%s_namespace.userset_id", k))
 		namespaceJoinsSlice = append(namespaceJoinsSlice, fmt.Sprintf(`LEFT JOIN %[1]s_namespace ON
-			%[1]s_namespace.id = usersets.%[1]s_id AND
+			%[1]s_namespace.id = usersets.resource_id AND
 			%[1]s_namespace.relation = usersets.relation`, k))
 	}
 
@@ -212,7 +252,7 @@ WHERE
 	user_id IS NOT NULL;
 `, namespace, strings.Join(idSlice, ", "), strings.Join(relationSlice, ", "), strings.Join(userIDSlice, ", "), strings.Join(usersetIDSlice, ", "), strings.Join(namespaceJoinsSlice, "\n"))
 
-	rows, err := p.DB.Query(sqlQuery, id, p.Relations[relation])
+	rows, err := p.DB.Query(sqlQuery, resourceID, p.Relations[relation])
 
 	if err != nil {
 		return []int{}, err
@@ -236,23 +276,15 @@ WHERE
 }
 
 type permsStruct struct {
-	CodeinsightID *int
-	NotebookID    *int
-	GroupID       *int
-	Relation      *int
+	ResourceID *int
+	Relation   *int
 }
 
 func (p *permissions) fetchResourcesForUser(userID int) ([]permsStruct, error) {
 	generateSelectQuery := func(namespaces []string, namespace string) string {
-		output := "SELECT\n"
-		for _, k := range p.Namespaces {
-			if k == namespace {
-				output += fmt.Sprintf("id AS %s_id,\n", k)
-			} else {
-				output += fmt.Sprintf("CAST(NULL AS int) AS %s_id,\n", k)
-			}
-		}
-		output += fmt.Sprintf(`
+		output := fmt.Sprintf(`
+	SELECT
+		id,
 		relation,
 		user_id,
 		userset_id
@@ -271,7 +303,7 @@ func (p *permissions) fetchResourcesForUser(userID int) ([]permsStruct, error) {
 	innerjoinIDSlice := make([]string, 0, len(p.Namespaces))
 	leftjoinIDSlice := make([]string, 0, len(p.Namespaces))
 	for _, k := range p.Namespaces {
-		idSlice = append(idSlice, fmt.Sprintf("%s_id", k))
+		idSlice = append(idSlice, fmt.Sprintf("%s_namespace.id", k))
 		relationSlice = append(relationSlice, fmt.Sprintf("%s_namespace.relation", k))
 		namespaceSelectsSlice = append(namespaceSelectsSlice, generateSelectQuery(p.Namespaces, k))
 		namespaceIDSlice = append(namespaceIDSlice, fmt.Sprintf("%[1]s_namespace.id AS %[1]s_id,", k))
@@ -286,18 +318,18 @@ func (p *permissions) fetchResourcesForUser(userID int) ([]permsStruct, error) {
 		)
 		UNION
 		select
-			%[2]s
+			coalesce(%[6]s) as id,
 			coalesce(%[3]s) as relation,
 			null as user_id,
 			null as userset_id
 		FROM
 			all_resources ar
 		INNER JOIN usersets ON
-			(%[4]s) AND ar.relation = usersets.relation
+			(usersets.resource_id = ar.id) AND ar.relation = usersets.relation
 		%[5]s
 	)
 	SELECT
-		%[6]s,
+		id,
 		relation
 	FROM all_resources;
 `, strings.Join(namespaceSelectsSlice, "UNION\n"), strings.Join(namespaceIDSlice, "\n"), strings.Join(relationSlice, ", "), strings.Join(innerjoinIDSlice, " OR\n"), strings.Join(leftjoinIDSlice, "\n"), strings.Join(idSlice, ",\n"))
@@ -314,7 +346,7 @@ func (p *permissions) fetchResourcesForUser(userID int) ([]permsStruct, error) {
 
 	for rows.Next() {
 		var rowPerm permsStruct
-		err := rows.Scan(&rowPerm.NotebookID, &rowPerm.CodeinsightID, &rowPerm.GroupID, &rowPerm.Relation)
+		err := rows.Scan(&rowPerm.ResourceID, &rowPerm.Relation)
 
 		if err != nil {
 			return []permsStruct{}, err
@@ -362,7 +394,14 @@ func main() {
 	// Create a user
 	steveID, _ := perms.createResource("users", "Steve")
 	// Create a notebook
-	notebook1ID, _ := perms.createResource("notebooks", "Notebook 1")
+	notebook1, err := perms.createResource("notebooks", "Notebook 1")
+	if err != nil {
+		panic(err)
+	}
+	notebook1ID, err := perms.registerOrGetResourceID("notebooks", notebook1)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("First we show that, without any permission entries, user Steve cannot view notebook 1")
 
@@ -402,7 +441,11 @@ func main() {
 	fmt.Println("We are now going to give user Steve indirect edit access to notebook 1. We will add user Steve to a group, and then give members of that group edit access to notebook 1")
 
 	fmt.Println("First we create a group, define the 'member' relation, and create a member relation between Steve and the group")
-	groupID, err := perms.createResource("groups", "Group 1")
+	group1, err := perms.createResource("groups", "Group 1")
+	if err != nil {
+		panic(err)
+	}
+	groupID, err := perms.registerOrGetResourceID("groups", group1)
 	if err != nil {
 		panic(err)
 	}
@@ -420,7 +463,7 @@ func main() {
 	}
 
 	fmt.Println("Now we create an edit relation to the userset that is 'members of group 1'")
-	err = perms.createUserSetRelation("notebooks", notebook1ID, "edit", "groups", groupID, "member")
+	err = perms.createUserSetRelation("notebooks", notebook1ID, "edit", groupID, "member")
 	if err != nil {
 		panic(err)
 	}
@@ -439,7 +482,11 @@ func main() {
 	fmt.Println("Next we want to show that we can link a code insight's permissions to the notebook, and by extension give user Steve access to the code insight.")
 	fmt.Println("First we create a code insight")
 
-	codeinsightID, err := perms.createResource("codeinsights", "Code Insight 1")
+	codeinsight, err := perms.createResource("codeinsights", "Code Insight 1")
+	if err != nil {
+		panic(err)
+	}
+	codeinsightID, err := perms.registerOrGetResourceID("codeinsights", codeinsight)
 	if err != nil {
 		panic(err)
 	}
@@ -455,7 +502,7 @@ func main() {
 
 	fmt.Println("Now we give viewers of notebook 1 view access to code insight 1, and check again")
 
-	err = perms.createUserSetRelation("codeinsights", codeinsightID, "view", "notebooks", notebook1ID, "view")
+	err = perms.createUserSetRelation("codeinsights", codeinsightID, "view", notebook1ID, "view")
 	if err != nil {
 		panic(err)
 	}
@@ -472,7 +519,7 @@ func main() {
 	fmt.Println("Further more, we show that we can give editors of notebook 1 edit access to code insight 1.")
 	fmt.Println("In this case, user Steve can now edit code insight 1, because he is a member of group 1 which has edit access to notebook 1, which now has edit access to code insight 1")
 
-	err = perms.createUserSetRelation("codeinsights", codeinsightID, "edit", "notebooks", notebook1ID, "edit")
+	err = perms.createUserSetRelation("codeinsights", codeinsightID, "edit", notebook1ID, "edit")
 
 	canEdit, err = perms.checkUserRelation("codeinsights", codeinsightID, "edit", steveID)
 	if err != nil {
@@ -502,7 +549,11 @@ func main() {
 	fmt.Println("-----")
 	fmt.Println("Similarly, we can fetch all resources a user has access to. We'll create a code insight 2 that user Steve can also edit, and retrieve the list")
 
-	codeInsight2ID, err := perms.createResource("codeinsights", "Code Insight 2")
+	codeInsight2, err := perms.createResource("codeinsights", "Code Insight 2")
+	if err != nil {
+		panic(err)
+	}
+	codeInsight2ID, err := perms.registerOrGetResourceID("codeinsights", codeInsight2)
 	if err != nil {
 		panic(err)
 	}
@@ -519,15 +570,7 @@ func main() {
 
 	fmt.Println("Permissions for user Steve: ")
 	for _, perm := range stevePerms {
-		if perm.CodeinsightID != nil {
-			fmt.Println(fmt.Sprintf("Codeinsight %d - %s", *perm.CodeinsightID, perms.ReverseRelations[*perm.Relation]))
-		}
-		if perm.NotebookID != nil {
-			fmt.Println(fmt.Sprintf("Notebook %d - %s", *perm.NotebookID, perms.ReverseRelations[*perm.Relation]))
-		}
-		if perm.GroupID != nil {
-			fmt.Println(fmt.Sprintf("Group %d - %s", *perm.GroupID, perms.ReverseRelations[*perm.Relation]))
-		}
+		fmt.Println(fmt.Sprintf("%d - %s", *perm.ResourceID, perms.ReverseRelations[*perm.Relation]))
 	}
 
 	fmt.Println("-----")
@@ -545,14 +588,6 @@ func main() {
 
 	fmt.Println("Permissions for user Steve: ")
 	for _, perm := range stevePerms {
-		if perm.CodeinsightID != nil {
-			fmt.Println(fmt.Sprintf("Codeinsight %d - %s", *perm.CodeinsightID, perms.ReverseRelations[*perm.Relation]))
-		}
-		if perm.NotebookID != nil {
-			fmt.Println(fmt.Sprintf("Notebook %d - %s", *perm.NotebookID, perms.ReverseRelations[*perm.Relation]))
-		}
-		if perm.GroupID != nil {
-			fmt.Println(fmt.Sprintf("Group %d - %s", *perm.GroupID, perms.ReverseRelations[*perm.Relation]))
-		}
+		fmt.Println(fmt.Sprintf("%d - %s", *perm.ResourceID, perms.ReverseRelations[*perm.Relation]))
 	}
 }
