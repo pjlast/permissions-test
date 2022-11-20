@@ -11,6 +11,7 @@ import (
 const DatabaseURL = "postgres://sourcegraph@localhost:5432/perms?sslmode=disable"
 
 func main() {
+	fmt.Println("============================= SETUP ========================================")
 	teardown, err := setupDB(DatabaseURL)
 	if err != nil {
 		log.Fatalf("Migrations: %v", err)
@@ -24,47 +25,41 @@ func main() {
 
 	c := &Controller{DB: db}
 
-	users, err := seedUsers(c)
-	if err != nil {
-		log.Fatalf("error while seeding users --> %v", err)
-	}
-	fmt.Printf("Successfully seeded %d users ... \n", len(users))
-
 	roles, err := seedRoles(c)
 	if err != nil {
 		log.Fatalf("error while seeding users --> %v", err)
 	}
 	fmt.Printf("Successfully seeded %d roles ... \n", len(roles))
 
-}
-
-func seedUsers(c *Controller) ([]*User, error) {
-	users := make([]*User, len(mockUserNames))
-
-	for idx, name := range mockUserNames {
-		user, err := c.CreateUser(name)
-		if err != nil {
-			return users, err
-
-		}
-
-		users[idx] = user
+	s, err := ParseSchema()
+	if err != nil {
+		log.Fatal("error parsing schema")
 	}
 
-	return users, nil
-}
-
-func seedRoles(c *Controller) ([]*Role, error) {
-	roles := make([]*Role, len(mockRoles))
-
-	for idx, name := range mockRoles {
-		role, err := c.CreateRole(name)
-		if err != nil {
-			return roles, err
+	ps, err := c.CreatePermissions(s)
+	if err != nil {
+		log.Fatalf("error creating permissions ", err)
+	}
+	for _, r := range roles {
+		for _, p := range ps {
+			// add all global permissions to the default role and site admin role
+			err = c.AddPermissionToRole(r, p)
+			if err != nil {
+				log.Fatalf("error adding permission '%s' to role %s", p.String(), r.Name)
+			}
 		}
-
-		roles[idx] = role
 	}
 
-	return roles, nil
+	fmt.Println("We grab the def")
+	defaultRole, err := c.GetRoleByName("DEFAULT")
+	if err != nil {
+		log.Fatalf("error getting default role ", err)
+	}
+
+	users, err := seedUsers(c, defaultRole)
+	if err != nil {
+		log.Fatalf("error while seeding users --> %v", err)
+	}
+	fmt.Printf("Successfully seeded %d users ... \n", len(users))
+	fmt.Println("============================= SETUP COMPLETE========================================")
 }

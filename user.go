@@ -16,19 +16,22 @@ var mockUserNames = []string{
 	"Aubrey",
 }
 
-//func seedUsers(db *sql.DB) error {
-//	users := make([]*User, len(mockUserNames))
-//	for _, name := range mockUserNames {
-//		users = append(users, &User{
-//			Name: name,
-//		})
-//	}
-//
-//	_, err := db.Exec()
-//
-//	return nil
-//}
-//
-//var insertUserFmtQuery = `INSERT INTO users
-//VALUES (%s)
-//RETURNING %s`
+func seedUsers(c *Controller, defaultRole *Role) ([]*User, error) {
+	users := make([]*User, len(mockUserNames), len(mockUserNames))
+
+	for idx, name := range mockUserNames {
+		user, err := c.CreateUser(name)
+		if err != nil {
+			return users, err
+		}
+
+		err = c.AddRoleForUser(user, defaultRole)
+		if err != nil {
+			return users, err
+		}
+
+		users[idx] = user
+	}
+
+	return users, nil
+}

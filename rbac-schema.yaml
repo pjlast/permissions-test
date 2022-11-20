@@ -2,23 +2,26 @@ name: RBAC Schema Definition
 
 namespaces:
   - batch_changes:
-      name: "Batch Changes"
-      relations:
-        - VIEW
-        - CREATE
-        - EXECUTE
-  - codeinsights:
-      name: "Code Insights"
-      relations:
-        - VIEW
-        - CREATE
-  - orgs:
-      name: "Organization"
-      relations:
-        - MEMBER
-        - ADMIN
+    name: "Batch Changes"
+    relations:
+      - VIEW
+      - CREATE
+      - EXECUTE
+
   - notebooks:
     name: "Notebooks"
     relations:
       - VIEW
       - CREATE
+
+  - codeinsights:
+    name: "Code Insights"
+    relations:
+      - VIEW
+      - CREATE
+
+  - orgs:
+    name: "Organization"
+    relations:
+      - MEMBER
+      - ADMIN

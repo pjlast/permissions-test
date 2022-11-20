@@ -24,7 +24,7 @@ func setupDB(url string) (func(), error) {
 	fmt.Println("Successfully executed the migrations.")
 
 	return func() {
-		time.Sleep(30 * time.Second)
+		time.Sleep(10 * time.Second)
 		fmt.Println("Reversing migrations ....")
 		err := m.Down()
 		if err != nil {

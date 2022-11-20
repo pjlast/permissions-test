@@ -5,21 +5,24 @@ import (
 )
 
 type Permission struct {
-	ID        int
-	namespace string
-	ObjectID  int
-	Relation  string
-	SubjectID int
+	ID                int
+	Namespace         string
+	NamespaceObjectID int
+	Relation          string
+	NamespaceUserID   int
+	NamespaceOrgID    int
 }
 
 func (p *Permission) String() string {
-	s := fmt.Sprintf("%s:%d#%s", p.namespace, p.ObjectID, p.Relation)
-
-	if p.SubjectID != 0 {
-		s += fmt.Sprintf("@%s", p.SubjectID)
+	if p.NamespaceUserID != 0 {
+		return fmt.Sprintf("%s:%d#%s@%d", p.Namespace, p.NamespaceObjectID, p.Relation, p.NamespaceUserID)
 	}
 
-	return s
+	if p.NamespaceOrgID == 0 {
+		return fmt.Sprintf("%s:%d#%s@%d", p.Namespace, p.NamespaceObjectID, p.Relation, p.NamespaceOrgID)
+	}
+
+	return fmt.Sprintf("%s:*#%s", p.Namespace, p.Relation)
 }
 
 func (p *Permission) HasNamespaceAccess(namespace string) bool {
