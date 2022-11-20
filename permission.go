@@ -25,9 +25,4 @@ func (p *Permission) String() string {
 	return fmt.Sprintf("%s:*#%s", p.Namespace, p.Relation)
 }
 
-func (p *Permission) HasNamespaceAccess(namespace string) bool {
-	fmt.Printf("checking namespace access for %s\n", namespace)
-	return false
-}
-
-//select * from batch_changes bc where (private = true AND ) AND (public = false AND bc.owner_id = 2)
+// select * from batch_changes bc where (private = true AND ) AND (public = false AND bc.owner_id = 2)

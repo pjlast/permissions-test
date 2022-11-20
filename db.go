@@ -3,9 +3,10 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/golang-migrate/migrate/v4"
 	"log"
 	"time"
+
+	"github.com/golang-migrate/migrate/v4"
 )
 
 func setupDB(url string) (func(), error) {
@@ -24,15 +25,18 @@ func setupDB(url string) (func(), error) {
 	fmt.Println("Successfully executed the migrations.")
 
 	return func() {
-		time.Sleep(10 * time.Second)
+		time.Sleep(30 * time.Second)
+		fmt.Println("")
+		fmt.Println("===================== TEARDOWN =====================")
 		fmt.Println("Reversing migrations ....")
 		err := m.Down()
 		if err != nil {
 			log.Fatal(err)
 		}
+		fmt.Println("===================== TEARDOWN COMPLETE =====================")
 	}, nil
 }
 
-func NewDB(url string) (*sql.DB, error) {
+func newDB(url string) (*sql.DB, error) {
 	return sql.Open("postgres", url)
 }
