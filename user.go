@@ -8,26 +8,25 @@ type User struct {
 	Name string
 }
 
+func (u *User) checkPublicResourceAccess(namespace, relation string) (bool, error) {
+	var id int
+	err := db.QueryRow("SELECT id FROM permissions WHERE namespace = $1 AND relation = $2 AND user_id = $3", namespace, relation, u.ID).Scan(&id)
+	if err != nil {
+		return false, err
+	}
+	return id > 0, nil
+}
+
 var mockUserNames = []string{
 	"kai",
-	"hunter",
 	"elliot",
-	"asa",
 	"jalen",
-	"evan",
-	"jude",
-	"aubrey",
 }
 
 var userRoleMapping = map[string][]string{
 	"kai":    {"DEFAULT", "SITE_ADMINISTRATOR"},
-	"hunter": {"DEFAULT", "OPERATOR"},
 	"elliot": {"DEFAULT", "OPERATOR"},
-	"asa":    {"DEFAULT", "SITE_ADMINISTRATOR"},
 	"jalen":  {"DEFAULT"},
-	"evan":   {"DEFAULT"},
-	"jude":   {"DEFAULT"},
-	"aubrey": {"DEFAULT"},
 }
 
 func seedUsers(c *Controller, roles ...*Role) ([]*User, error) {
@@ -39,8 +38,8 @@ func seedUsers(c *Controller, roles ...*Role) ([]*User, error) {
 			return users, err
 		}
 
-		// add users (Kai and Aubrey) to the Acme org
-		if name == "kai" || name == "aubrey" {
+		// add users Kai and Jalen to the Acme org
+		if name == "kai" || name == "jalen" {
 			fmt.Printf("Adding user %s to Acme org.", name)
 			org, err := c.getOrgByName("ACME")
 			if err != nil {
