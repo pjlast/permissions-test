@@ -17,7 +17,7 @@ type notebook struct {
 	CreatorID int
 }
 
-type codeinsights struct {
+type codeinsight struct {
 	ID     int
 	Name   string
 	UserID int

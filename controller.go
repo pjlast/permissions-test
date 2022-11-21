@@ -86,3 +86,27 @@ func (c *Controller) getOrgByName(orgName string) (*Org, error) {
 
 	return &o, err
 }
+
+func (c *Controller) createBatchChange(bc *batchChange) error {
+	if bc.NamespaceOrgID == 0 && bc.NamespaceUserID == 0 {
+		return fmt.Errorf("batch change must have a namespace")
+	}
+
+	if bc.NamespaceOrgID != 0 {
+		return c.DB.QueryRow("INSERT INTO batch_changes (name, private, namespace_org_id, creator_id) VALUES ($1, $2, $3, $4) RETURNING id;", bc.Name, bc.Private, bc.NamespaceOrgID, bc.CreatorID).Scan(&bc.ID)
+	}
+
+	return c.DB.QueryRow("INSERT INTO batch_changes (name, private, namespace_user_id, creator_id) VALUES ($1, $2, $3, $4) RETURNING id;", bc.Name, bc.Private, bc.NamespaceUserID, bc.CreatorID).Scan(&bc.ID)
+}
+
+func (c *Controller) createNotebook(n *notebook) error {
+	err := c.DB.QueryRow("INSERT INTO notebooks (name, content, private, creator_id) VALUES ($1, $2, $3, $4) RETURNING id;", n.Name, n.Content, n.Private, n.CreatorID).Scan(&n.ID)
+
+	return err
+}
+
+func (c *Controller) createCodeInsight(ci *codeinsight) error {
+	err := c.DB.QueryRow("INSERT INTO code_insights (name, user_id) VALUES ($1, $2) RETURNING id;", ci.Name, ci.UserID).Scan(&ci.ID)
+
+	return err
+}

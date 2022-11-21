@@ -157,6 +157,28 @@ func initiateSetup(db *sql.DB) (teardown func()) {
 		log.Fatalf("error while seeding users --> %v", err)
 	}
 	fmt.Printf("Successfully seeded %d users ... \n", len(users))
+
+	for _, bc := range mockBatchChanges {
+		err = c.createBatchChange(&bc)
+		if err != nil {
+			log.Fatal("error creating batch change", err)
+		}
+	}
+
+	for _, nb := range mockNotebooks {
+		err = c.createNotebook(&nb)
+		if err != nil {
+			log.Fatal("error creating notebook", err)
+		}
+	}
+
+	for _, ci := range mockCodeInsights {
+		err = c.createCodeInsight(&ci)
+		if err != nil {
+			log.Fatal("error creating code insight", err)
+		}
+	}
+
 	fmt.Println("============================= SETUP COMPLETE========================================")
 	return
 }

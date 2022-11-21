@@ -52,7 +52,7 @@ var mockBatchChanges = []batchChange{
 	},
 }
 
-var mockcodeinsights = []codeinsights{
+var mockCodeInsights = []codeinsight{
 	{
 		Name:   "kai-codeinsights1",
 		UserID: 1,
