@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 )
@@ -25,7 +24,6 @@ func setupDB(url string) (func(), error) {
 	fmt.Println("Successfully executed the migrations.")
 
 	return func() {
-		time.Sleep(30 * time.Second)
 		fmt.Println("")
 		fmt.Println("===================== TEARDOWN =====================")
 		fmt.Println("Reversing migrations ....")

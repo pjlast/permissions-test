@@ -9,25 +9,25 @@ type User struct {
 }
 
 var mockUserNames = []string{
-	"Kai",
-	"Hunter",
-	"Elliot",
-	"Asa",
-	"Jalen",
-	"Evan",
-	"Jude",
-	"Aubrey",
+	"kai",
+	"hunter",
+	"elliot",
+	"asa",
+	"jalen",
+	"evan",
+	"jude",
+	"aubrey",
 }
 
 var userRoleMapping = map[string][]string{
-	"Kai":    {"DEFAULT", "SITE_ADMINISTRATOR"},
-	"Hunter": {"DEFAULT", "OPERATOR"},
-	"Elliot": {"DEFAULT", "OPERATOR"},
-	"Asa":    {"DEFAULT", "SITE_ADMINISTRATOR"},
-	"Jalen":  {"DEFAULT"},
-	"Evan":   {"DEFAULT"},
-	"Jude":   {"DEFAULT"},
-	"Aubrey": {"DEFAULT"},
+	"kai":    {"DEFAULT", "SITE_ADMINISTRATOR"},
+	"hunter": {"DEFAULT", "OPERATOR"},
+	"elliot": {"DEFAULT", "OPERATOR"},
+	"asa":    {"DEFAULT", "SITE_ADMINISTRATOR"},
+	"jalen":  {"DEFAULT"},
+	"evan":   {"DEFAULT"},
+	"jude":   {"DEFAULT"},
+	"aubrey": {"DEFAULT"},
 }
 
 func seedUsers(c *Controller, roles ...*Role) ([]*User, error) {
@@ -37,6 +37,19 @@ func seedUsers(c *Controller, roles ...*Role) ([]*User, error) {
 		user, err := c.createUser(name)
 		if err != nil {
 			return users, err
+		}
+
+		// add users (Kai and Aubrey) to the Acme org
+		if name == "kai" || name == "aubrey" {
+			fmt.Printf("Adding user %s to Acme org.", name)
+			org, err := c.getOrgByName("ACME")
+			if err != nil {
+				return users, err
+			}
+			err = c.addUserToOrg(user, org)
+			if err != nil {
+				return users, err
+			}
 		}
 
 		fmt.Println("")

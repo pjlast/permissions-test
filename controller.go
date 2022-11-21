@@ -24,6 +24,13 @@ func (c *Controller) createRole(name string) (*Role, error) {
 	return &r, err
 }
 
+func (c *Controller) createOrg(name string) (*Org, error) {
+	o := Org{}
+	err := c.DB.QueryRow("INSERT INTO orgs (name) VALUES ($1) RETURNING id, name;", name).Scan(&o.ID, &o.Name)
+
+	return &o, err
+}
+
 func (c *Controller) createPermissions(s *Schema) (ps []*Permission, err error) {
 	fmt.Println("")
 	for _, namespace := range s.Namespaces {
@@ -66,4 +73,16 @@ func (c *Controller) addRoleForUser(u *User, rs ...*Role) error {
 	}
 
 	return nil
+}
+
+func (c *Controller) addUserToOrg(u *User, o *Org) error {
+	row := c.DB.QueryRow("INSERT INTO org_members (user_id, org_id) VALUES ($1, $2);", u.ID, o.ID)
+	return row.Err()
+}
+
+func (c *Controller) getOrgByName(orgName string) (*Org, error) {
+	o := Org{}
+	err := c.DB.QueryRow("SELECT id, name FROM orgs WHERE name = $1;", orgName).Scan(&o.ID, &o.Name)
+
+	return &o, err
 }
