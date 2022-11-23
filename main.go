@@ -36,7 +36,11 @@ func main() {
 	r.Use(authCheckMiddleware)
 
 	r.Get("/", rootHandler)
-	r.Get("/batchchanges", getBatchChangesHandler)
+
+	r.Route("/batchchanges", func(r chi.Router) {
+		r.Get("/", getBatchChangesHandler)
+		r.Patch("/{batchChangeID}/share/{recipientUserID}/{relation}", shareBatchChange)
+	})
 	// r.Get("/notebooks", headers)
 	// r.Get("/codeinsights", headers)
 

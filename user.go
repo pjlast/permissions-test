@@ -8,10 +8,17 @@ type User struct {
 	Name string
 }
 
-func (u *User) checkPublicResourceAccess(namespace, relation string) (bool, error) {
+func (u *User) checkNamespaceAccess(namespace, relation string) (bool, error) {
 	var id int
-	err := db.QueryRow("SELECT id FROM permissions WHERE namespace = $1 AND relation = $2 AND user_id = $3", namespace, relation, u.ID).Scan(&id)
+	err := db.QueryRow(`SELECT p.id FROM permissions p
+INNER JOIN user_roles ur ON ur.user_id = $3
+INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
+WHERE p.namespace = $1 AND p.relation = $2
+LIMIT 1;`, namespace, relation, u.ID).Scan(&id)
 	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return false, nil
+		}
 		return false, err
 	}
 	return id > 0, nil
@@ -21,12 +28,14 @@ var mockUserNames = []string{
 	"kai",
 	"elliot",
 	"jalen",
+	"adrian",
 }
 
 var userRoleMapping = map[string][]string{
 	"kai":    {"DEFAULT", "SITE_ADMINISTRATOR"},
 	"elliot": {"DEFAULT", "OPERATOR"},
 	"jalen":  {"DEFAULT"},
+	"adrian": {},
 }
 
 func seedUsers(c *Controller, roles ...*Role) ([]*User, error) {
