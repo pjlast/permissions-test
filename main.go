@@ -36,7 +36,7 @@ func main() {
 	r.Use(authCheckMiddleware)
 
 	r.Get("/", rootHandler)
-	r.Get("/batch-changes", getBatchChangeHandler)
+	r.Get("/batchchanges", getBatchChangesHandler)
 	// r.Get("/notebooks", headers)
 	// r.Get("/codeinsights", headers)
 

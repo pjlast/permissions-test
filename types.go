@@ -1,24 +1,24 @@
 package main
 
 type batchChange struct {
-	ID              int
-	Name            string
-	Private         bool
-	NamespaceUserID int
-	NamespaceOrgID  int
-	CreatorID       int
+	ID              int    `json:"id"`
+	Name            string `json:"name"`
+	Private         bool   `json:"private"`
+	NamespaceUserID int    `json:"namespace_user_id"`
+	NamespaceOrgID  int    `json:"namespace_org_id"`
+	CreatorID       int    `json:"creator_id"`
 }
 
 type notebook struct {
-	ID        int
-	Name      string
-	Content   string
-	Private   bool
-	CreatorID int
+	ID        int    `json:"id"`
+	Name      string `json:"name"`
+	Content   string `json:"content"`
+	Private   bool   `json:"private"`
+	CreatorID int    `json:"creator_id"`
 }
 
 type codeinsight struct {
-	ID     int
-	Name   string
-	UserID int
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	UserID int    `json:"user_id"`
 }

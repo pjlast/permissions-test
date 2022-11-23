@@ -84,10 +84,10 @@ CREATE TABLE permissions (
 
     -- foreign keys
     namespace_user_id integer REFERENCES users(id) ON DELETE CASCADE DEFERRABLE,
-    namespace_org_id integer REFERENCES orgs(id) ON DELETE CASCADE DEFERRABLE,
 
     -- constraints
-    CONSTRAINT permission_global_check CHECK ((namespace_object_id IS NULL) = ((namespace_user_id IS NULL) = (namespace_org_id IS NULL))),
+    -- CONSTRAINT permission_global_check CHECK ((namespace_object_id IS NULL) = ((namespace_user_id IS NULL) = (namespace_org_id IS NULL))),
+    CONSTRAINT permission_global_check CHECK ((namespace_object_id IS NULL) = (namespace_user_id IS NULL)),
     CONSTRAINT namespace_not_blank CHECK ((namespace <> ''::text))
 );
 
