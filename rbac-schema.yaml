@@ -1,12 +1,4 @@
-name: RBAC
-
-roles:
-  - operator:
-    name: "OPERATOR"
-    permission:
-      - namespace: "BATCHCHANGES"
-        relation:
-          - VIEW
+name: RBAC Schema Definition
 
 namespaces:
   - batch_changes:
