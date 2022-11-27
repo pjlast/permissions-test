@@ -12,14 +12,27 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-const databaseURL = "postgres://sourcegraph@localhost:5432/perms?sslmode=disable"
+const defaultDatabaseURL = "postgres://sourcegraph@localhost:5432/perms?sslmode=disable"
+
+var databaseURL string
 
 var db *sql.DB
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	databaseURL = os.Getenv("DATABASE_URL")
+	if databaseURL == "" {
+		databaseURL = defaultDatabaseURL
+	}
+
 	_db, err := newDB(databaseURL)
 	if err != nil {
 		log.Fatal("Getting db connector", err)
