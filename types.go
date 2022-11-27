@@ -1,5 +1,9 @@
 package main
 
+import (
+	"net/http"
+)
+
 type batchChange struct {
 	ID              int    `json:"id"`
 	Name            string `json:"name"`
@@ -14,6 +18,11 @@ func (b *batchChange) shareResourceAccess(recipientUserID int, relation string) 
 	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, relation) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", b.ID, recipientUserID, relation).Scan(&pint)
 
 	return err
+}
+
+func (b *batchChange) Bind(r *http.Request) error {
+	// https://stackoverflow.com/questions/44663496/chi-empty-http-request-body-in-render-bind#answer-44663794
+	return nil
 }
 
 type notebook struct {

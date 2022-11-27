@@ -111,3 +111,82 @@ func shareBatchChange(w http.ResponseWriter, r *http.Request) {
 
 	http.Error(w, fmt.Sprintf("Sharing batch change %s successful.", bcID), http.StatusOK)
 }
+
+func createBatchChange(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(userKey).(*User)
+
+	isAuthorized, err := user.checkNamespaceAccess("BATCHCHANGES", "CREATE")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if !isAuthorized {
+		http.Error(w, "You are not authorized to create batch changes", http.StatusForbidden)
+		return
+	}
+
+	bc := &batchChange{}
+	err = render.Bind(r, bc)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("cannot read request body: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	if bc.Name == "" {
+		http.Error(w, "name is required", http.StatusBadRequest)
+		return
+	}
+
+	err = db.QueryRow("INSERT INTO batch_changes (name, namespace_user_id, creator_id, private) VALUES ($1, $2, $3, $4) RETURNING namespace_user_id, creator_id, id", bc.Name, user.ID, user.ID, bc.Private).Scan(&bc.NamespaceUserID, &bc.CreatorID, &bc.ID)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	render.JSON(w, r, bc)
+}
+
+func getBatchChange(w http.ResponseWriter, r *http.Request) {
+	user := r.Context().Value(userKey).(*User)
+
+	isAuthorized, err := user.checkNamespaceAccess("BATCHCHANGES", "VIEW")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	if !isAuthorized {
+		http.Error(w, "You are not authorized to view batch changes", http.StatusForbidden)
+		return
+	}
+
+	bcID := chi.URLParam(r, "batchChangeID")
+
+	bc := &batchChange{}
+	err = db.QueryRow(`
+SELECT
+	id, name, private, namespace_org_id, namespace_user_id, creator_id
+FROM
+	batch_changes bc
+WHERE
+	bc.id = $1 AND (
+		(bc.namespace_user_id = $2) OR
+		(bc.namespace_user_id <> $2 AND bc.private = false) OR
+		EXISTS(SELECT 1 FROM permissions p WHERE p.namespace = 'BATCHCHANGES' AND p.relation = 'VIEW' AND p.namespace_user_id = $2 AND p.namespace_object_id = bc.id) OR
+		(bc.namespace_org_id IS NOT NULL AND EXISTS(SELECT 1  FROM org_members WHERE org_id = bc.namespace_org_id AND user_id = $2))
+	)
+`, bcID, user.ID).Scan(&bc.ID, &bc.Name, &bc.Private, &NullInt{N: &bc.NamespaceOrgID}, &NullInt{N: &bc.NamespaceUserID}, &bc.CreatorID)
+
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			http.Error(w, fmt.Sprintf("Batch Change with ID %s does not exist.", bcID), http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Error occurred while fetching batch change: %s", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	render.JSON(w, r, bc)
+}

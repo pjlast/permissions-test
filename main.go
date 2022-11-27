@@ -34,15 +34,16 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(authCheckMiddleware)
+	// r.Use(middleware.AllowContentType("application/json"))
 
 	r.Get("/", rootHandler)
 
 	r.Route("/batchchanges", func(r chi.Router) {
 		r.Get("/", getBatchChangesHandler)
 		r.Patch("/{batchChangeID}/share/{recipientUserID}/{relation}", shareBatchChange)
+		r.Post("/", createBatchChange)
+		r.Get("/{batchChangeID}", getBatchChange)
 	})
-	// r.Get("/notebooks", headers)
-	// r.Get("/codeinsights", headers)
 
 	go func() {
 		<-c
