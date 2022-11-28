@@ -3,25 +3,25 @@ name: RBAC Schema Definition
 namespaces:
   - batch_changes:
     name: "BATCHCHANGES"
-    relations:
+    actions:
       - VIEW
       - CREATE
       - EXECUTE
 
   - notebooks:
     name: "NOTEBOOKS"
-    relations:
+    actions:
       - VIEW
       - CREATE
 
   - codeinsights:
     name: "CODEINSIGHTS"
-    relations:
+    actions:
       - VIEW
       - CREATE
 
   # - orgs:
   #   name: "ORG"
-  #   relations:
+  #   actions:
   #     - MEMBER
   #     - ADMIN

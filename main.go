@@ -53,7 +53,7 @@ func main() {
 
 	r.Route("/batchchanges", func(r chi.Router) {
 		r.Get("/", getBatchChangesHandler)
-		r.Patch("/{batchChangeID}/share/{recipientUserID}/{relation}", shareBatchChange)
+		r.Patch("/{batchChangeID}/share/{recipientUserID}/{action}", shareBatchChange)
 		r.Post("/", createBatchChange)
 		r.Get("/{batchChangeID}", getBatchChange)
 	})
@@ -98,14 +98,14 @@ while the operator role will give full access to batch changes`)
 					}
 				}
 
-				if p.Namespace == "CODEINSIGHTS" && p.Relation == "VIEW" {
+				if p.Namespace == "CODEINSIGHTS" && p.Action == "VIEW" {
 					err := c.addPermissionToRole(r, p)
 					if err != nil {
 						return err
 					}
 				}
 
-				if p.Namespace == "BATCHCHANGES" && p.Relation == "VIEW" {
+				if p.Namespace == "BATCHCHANGES" && p.Action == "VIEW" {
 					err := c.addPermissionToRole(r, p)
 					if err != nil {
 						return err

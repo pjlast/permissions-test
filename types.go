@@ -13,9 +13,9 @@ type batchChange struct {
 	CreatorID       int    `json:"creator_id"`
 }
 
-func (b *batchChange) shareResourceAccess(recipientUserID int, relation string) error {
+func (b *batchChange) shareResourceAccess(recipientUserID int, action string) error {
 	var pint int
-	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, relation) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", b.ID, recipientUserID, relation).Scan(&pint)
+	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, action) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", b.ID, recipientUserID, action).Scan(&pint)
 
 	return err
 }
@@ -33,9 +33,9 @@ type notebook struct {
 	CreatorID int    `json:"creator_id"`
 }
 
-func (n *notebook) shareResourceAccess(recipientUserID int, relation string) error {
+func (n *notebook) shareResourceAccess(recipientUserID int, action string) error {
 	var pint int
-	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, relation) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", n.ID, recipientUserID, relation).Scan(&pint)
+	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, action) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", n.ID, recipientUserID, action).Scan(&pint)
 
 	return err
 }
@@ -46,9 +46,9 @@ type codeinsight struct {
 	UserID int    `json:"user_id"`
 }
 
-func (c *codeinsight) shareResourceAccess(recipientUserID int, relation string) error {
+func (c *codeinsight) shareResourceAccess(recipientUserID int, action string) error {
 	var pint int
-	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, relation) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", c.ID, recipientUserID, relation).Scan(&pint)
+	err := db.QueryRow("INSERT INTO permissions (namespace, namespace_object_id, namespace_user_id, action) VALUES ('BATCHCHANGES', $1, $2, $3) RETURNING id", c.ID, recipientUserID, action).Scan(&pint)
 
 	return err
 }

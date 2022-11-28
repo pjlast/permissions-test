@@ -80,7 +80,7 @@ CREATE TABLE permissions (
     id SERIAL PRIMARY KEY,
     namespace text NOT NULL,
     namespace_object_id INTEGER, -- NULL
-    relation TEXT NOT NULL,
+    action TEXT NOT NULL,
 
     -- foreign keys
     namespace_user_id integer REFERENCES users(id) ON DELETE CASCADE DEFERRABLE,

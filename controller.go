@@ -36,12 +36,12 @@ func (c *Controller) createPermissions(s *Schema) (ps []*Permission, err error) 
 	for _, namespace := range s.Namespaces {
 		fmt.Printf("creating permissions for namespace '%s'.\n", namespace.Name)
 
-		for _, relation := range namespace.Relations {
+		for _, action := range namespace.Actions {
 			p := &Permission{
-				Relation:  relation,
+				Action:    action,
 				Namespace: namespace.Name,
 			}
-			err := c.DB.QueryRow("INSERT INTO permissions (namespace, relation) VALUES ($1, $2) RETURNING id;", namespace.Name, relation).Scan(&p.ID)
+			err := c.DB.QueryRow("INSERT INTO permissions (namespace, action) VALUES ($1, $2) RETURNING id;", namespace.Name, action).Scan(&p.ID)
 			if err != nil {
 				return ps, err
 			}

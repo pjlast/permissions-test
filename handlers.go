@@ -38,7 +38,7 @@ func getBatchChangesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.Query("SELECT id, name, private, namespace_org_id, namespace_user_id, creator_id FROM batch_changes WHERE (namespace_user_id = $1) OR (namespace_user_id <> $1 AND private = false) OR (id IN (SELECT namespace_object_id FROM permissions p WHERE p.namespace = 'BATCHCHANGES' AND p.relation = 'VIEW' AND p.namespace_user_id = $1)) OR (EXISTS (SELECT 1 FROM org_members WHERE org_id = batch_changes.namespace_org_id AND user_id = $1 AND org_id <> 0))", user.ID)
+	rows, err := db.Query("SELECT id, name, private, namespace_org_id, namespace_user_id, creator_id FROM batch_changes WHERE (namespace_user_id = $1) OR (namespace_user_id <> $1 AND private = false) OR (id IN (SELECT namespace_object_id FROM permissions p WHERE p.namespace = 'BATCHCHANGES' AND p.action = 'VIEW' AND p.namespace_user_id = $1)) OR (EXISTS (SELECT 1 FROM org_members WHERE org_id = batch_changes.namespace_org_id AND user_id = $1 AND org_id <> 0))", user.ID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -77,7 +77,7 @@ func shareBatchChange(w http.ResponseWriter, r *http.Request) {
 
 	bcID := chi.URLParam(r, "batchChangeID")
 	rUID := chi.URLParam(r, "recipientUserID")
-	relation := chi.URLParam(r, "relation")
+	action := chi.URLParam(r, "action")
 
 	recipientUserID, err := strconv.Atoi(rUID)
 	if err != nil {
@@ -103,7 +103,7 @@ func shareBatchChange(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bc.shareResourceAccess(recipientUserID, strings.ToUpper(relation))
+	err = bc.shareResourceAccess(recipientUserID, strings.ToUpper(action))
 	if err != nil {
 		http.Error(w, "unable ", http.StatusBadRequest)
 		return
@@ -174,7 +174,7 @@ WHERE
 	bc.id = $1 AND (
 		(bc.namespace_user_id = $2) OR
 		(bc.namespace_user_id <> $2 AND bc.private = false) OR
-		EXISTS(SELECT 1 FROM permissions p WHERE p.namespace = 'BATCHCHANGES' AND p.relation = 'VIEW' AND p.namespace_user_id = $2 AND p.namespace_object_id = bc.id) OR
+		EXISTS(SELECT 1 FROM permissions p WHERE p.namespace = 'BATCHCHANGES' AND p.action = 'VIEW' AND p.namespace_user_id = $2 AND p.namespace_object_id = bc.id) OR
 		(bc.namespace_org_id IS NOT NULL AND EXISTS(SELECT 1  FROM org_members WHERE org_id = bc.namespace_org_id AND user_id = $2))
 	)
 `, bcID, user.ID).Scan(&bc.ID, &bc.Name, &bc.Private, &NullInt{N: &bc.NamespaceOrgID}, &NullInt{N: &bc.NamespaceUserID}, &bc.CreatorID)

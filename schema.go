@@ -1,8 +1,9 @@
 package main
 
 import (
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
+
+	"gopkg.in/yaml.v2"
 )
 
 type Schema struct {
@@ -11,8 +12,8 @@ type Schema struct {
 }
 
 type NamespaceSchema struct {
-	Name      string   `yaml:"name"`
-	Relations []string `yaml:"relations"`
+	Name    string   `yaml:"name"`
+	Actions []string `yaml:"actions"`
 }
 
 func ParseSchema() (*Schema, error) {

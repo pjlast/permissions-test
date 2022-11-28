@@ -1,13 +1,13 @@
 # Single Table Approach
 - save all namespace in one table
 - no foreign constraint check
-- 
+-
 
 # Multiple table Approach
 
 
 
-## Relation
+## Action
 - Viewer
 - Creator
 - Write
@@ -45,9 +45,9 @@ Create another role called
 
 ```sql
 SELECT * from permissions p
-where 
+where
     p.namespace = 'batch_change' | 'notebooks'
-        AND 
+        AND
     p.namespace_object_id IS NULL
         AND
     p.relation = 'CREATE'

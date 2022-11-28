@@ -8,13 +8,13 @@ type User struct {
 	Name string
 }
 
-func (u *User) checkNamespaceAccess(namespace, relation string) (bool, error) {
+func (u *User) checkNamespaceAccess(namespace, action string) (bool, error) {
 	var id int
 	err := db.QueryRow(`SELECT p.id FROM permissions p
 INNER JOIN user_roles ur ON ur.user_id = $3
 INNER JOIN role_permissions rp ON rp.role_id = ur.role_id
-WHERE p.namespace = $1 AND p.relation = $2
-LIMIT 1;`, namespace, relation, u.ID).Scan(&id)
+WHERE p.namespace = $1 AND p.action = $2
+LIMIT 1;`, namespace, action, u.ID).Scan(&id)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
 			return false, nil
